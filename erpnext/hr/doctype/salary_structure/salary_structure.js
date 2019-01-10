@@ -31,6 +31,20 @@ frappe.ui.form.on('Salary Structure', {
 				}
 			}
 		});
+		frm.set_query("overtime_salary_component", "earnings", function () {
+			return {
+				filters: {
+					type: "earning"
+				}
+			}
+		});
+		frm.set_query("overtime_salary_component", "deductions", function () {
+			return {
+				filters: {
+					type: "deduction"
+				}
+			}
+		});
 		frm.set_query("employee", "employees", function(doc) {
 			return {
 				query: "erpnext.controllers.queries.employee_query",
@@ -155,8 +169,8 @@ frappe.ui.form.on('Salary Structure', {
 	},
 
 	toggle_fields: function(frm) {
-		frm.toggle_display(['salary_component', 'hour_rate'], frm.doc.salary_slip_based_on_timesheet);
-		frm.toggle_reqd(['salary_component', 'hour_rate'], frm.doc.salary_slip_based_on_timesheet);
+		frm.toggle_display(['salary_component', 'hour_rate', 'overtime_salary_component', 'overtime_hour_rate'], frm.doc.salary_slip_based_on_timesheet);
+		frm.toggle_reqd(['salary_component', 'hour_rate', 'overtime_salary_component', 'overtime_hour_rate'], frm.doc.salary_slip_based_on_timesheet);
 		frm.toggle_reqd(['payroll_frequency'], !frm.doc.salary_slip_based_on_timesheet);
 	}
 });
