@@ -3,6 +3,8 @@
 
 cur_frm.add_fetch('employee', 'company', 'company');
 cur_frm.add_fetch('time_sheet', 'total_hours', 'working_hours');
+cur_frm.add_fetch('overtime_time_sheet', 'total_hours', 'working_hours');
+
 
 frappe.ui.form.on("Salary Slip", {
 	setup: function(frm) {
@@ -21,6 +23,27 @@ frappe.ui.form.on("Salary Slip", {
 			}
 		})
 		frm.set_query("salary_component", "deductions", function() {
+			return {
+				filters: {
+					type: "deduction"
+				}
+			}
+		})
+		frm.fields_dict["overtime_timesheets"].grid.get_field("overtime_time_sheet").get_query = function(){
+			return {
+				filters: {
+					employee: frm.doc.employee
+				}
+			}
+		}
+		frm.set_query("overtime_salary_component", "earnings", function() {
+			return {
+				filters: {
+					type: "earning"
+				}
+			}
+		})
+		frm.set_query("overtime_salary_component", "deductions", function() {
 			return {
 				filters: {
 					type: "deduction"
@@ -83,7 +106,7 @@ frappe.ui.form.on("Salary Slip", {
 	},
 
 	toggle_fields: function(frm) {
-		frm.toggle_display(['hourly_wages', 'timesheets'],
+		frm.toggle_display(['hourly_wages', 'timesheets', 'overtime_timesheets'],
 			cint(frm.doc.salary_slip_based_on_timesheet)==1);
 
 		frm.toggle_display(['payment_days', 'total_working_days', 'leave_without_pay'],
@@ -107,6 +130,15 @@ frappe.ui.form.on('Salary Slip Timesheet', {
 	},
 	timesheets_remove: function(frm, dt, dn) {
 		total_work_hours(frm, dt, dn);
+	}
+});
+
+frappe.ui.form.on('Salary Slip Overtime Timesheet', {
+	overtime_time_sheet: function (frm, dt, dn) {
+		ot_total_work_hours(frm, dt, dn);
+	},
+	timesheets_remove: function (frm, dt, dn) {
+		ot_total_work_hours(frm, dt, dn);
 	}
 });
 
@@ -234,6 +266,32 @@ var total_work_hours = function(frm, dt, dn) {
 
 	frappe.db.get_value('Salary Structure', {'name': frm.doc.salary_structure}, 'salary_component', (r) => {
 		frm.set_value('gross_pay', 0);
+
+		$.each(frm.doc["earnings"], function(i, earning) {
+			if (earning.salary_component == r.salary_component) {
+				earning.amount = wages_amount;
+				frm.refresh_fields('earnings');
+			}
+			frm.doc.gross_pay += earning.amount;
+		});
+
+		frm.refresh_field('gross_pay');
+		calculate_net_pay(frm.doc, dt, dn);
+	});
+}
+
+var ot_total_work_hours = function(frm, dt, dn) {
+	frm.set_value('total_overtime_working_hours', 0);
+
+	$.each(frm.doc["overtime_timesheets"] || [], function(i, timesheet) {
+		frm.doc.total_overtime_working_hours += timesheet.working_hours;
+	});
+	frm.refresh_field('total_overtime_working_hours');
+
+	var wages_amount = frm.doc.total_overtime_working_hours * frm.doc.overtime_hour_rate;
+
+	frappe.db.get_value('Salary Structure', {'name': frm.doc.salary_structure}, 'overtime_salary_component', (r) => {
+		// frm.set_value('gross_pay', 0);
 
 		$.each(frm.doc["earnings"], function(i, earning) {
 			if (earning.salary_component == r.salary_component) {

@@ -165,7 +165,7 @@ class SalarySlip(TransactionBase):
 
 			for data in overtime_timesheets:
 				self.append('overtime_timesheets', {
-					'time_sheet': data.name,
+					'overtime_time_sheet': data.name,
 					'working_hours': data.total_hours
 				})
 
@@ -469,8 +469,8 @@ class SalarySlip(TransactionBase):
 				timesheet.save()
 
 		for data in self.overtime_timesheets:
-			if data.time_sheet:
-				timesheet = frappe.get_doc('Overtime Timesheet', data.time_sheet)
+			if data.overtime_time_sheet:
+				timesheet = frappe.get_doc('Overtime Timesheet', data.overtime_time_sheet)
 				timesheet.salary_slip = salary_slip
 				timesheet.flags.ignore_validate_update_after_submit = True
 				timesheet.set_status()
