@@ -159,6 +159,16 @@ class SalarySlip(TransactionBase):
 					'working_hours': data.total_hours
 				})
 
+			self.set("overtime_timesheets", [])
+			overtime_timesheets = frappe.db.sql(""" select * from `tabOvertime Timesheet` where employee = %(employee)s and start_date BETWEEN %(start_date)s AND %(end_date)s and (status = 'Submitted' or
+				status = 'Billed')""", {'employee': self.employee, 'start_date': self.start_date, 'end_date': self.end_date}, as_dict=1)
+
+			for data in overtime_timesheets:
+				self.append('overtime_timesheets', {
+					'time_sheet': data.name,
+					'working_hours': data.total_hours
+				})
+
 	def get_date_details(self):
 		if not self.end_date:
 			date_details = get_start_end_dates(self.payroll_frequency, self.start_date or self.posting_date)
@@ -198,6 +208,12 @@ class SalarySlip(TransactionBase):
 			wages_amount = self.hour_rate * self.total_working_hours
 
 			self.add_earning_for_hourly_wages(self, self._salary_structure_doc.salary_component, wages_amount)
+
+			self.overtime_hour_rate = self._salary_structure_doc.overtime_hour_rate
+			self.total_overtime_working_hours = sum([d.working_hours or 0.0 for d in self.overtime_timesheets]) or 0.0
+			overtime_wages_amount = self.overtime_hour_rate * self.total_overtime_working_hours
+
+			self.add_earning_for_hourly_wages(self, self._salary_structure_doc.overtime_salary_component, overtime_wages_amount)
 
 		make_salary_slip(self._salary_structure_doc.name, self)
 
@@ -447,6 +463,14 @@ class SalarySlip(TransactionBase):
 		for data in self.timesheets:
 			if data.time_sheet:
 				timesheet = frappe.get_doc('Timesheet', data.time_sheet)
+				timesheet.salary_slip = salary_slip
+				timesheet.flags.ignore_validate_update_after_submit = True
+				timesheet.set_status()
+				timesheet.save()
+
+		for data in self.overtime_timesheets:
+			if data.time_sheet:
+				timesheet = frappe.get_doc('Overtime Timesheet', data.time_sheet)
 				timesheet.salary_slip = salary_slip
 				timesheet.flags.ignore_validate_update_after_submit = True
 				timesheet.set_status()
